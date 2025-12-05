@@ -11,29 +11,28 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
-import retrofit2.http.Query
+
 
 interface ApiService {
 
     // GET /api/polls/
-    @GET("api/polls/")
+    @GET("polls/")
     suspend fun getPolls(): Response<List<PollModel>>
 
     // GET /api/polls/{id}/
-    @GET("api/polls/{id}/")
+    @GET("polls/{id}/")
     suspend fun getPollById(
         @Path("id") pollId: Int
     ): Response<PollModel>
 
     // POST /api/votes/
-    @POST("api/votes/")
+    @POST("votes/")
     suspend fun sendVote(
         @Body vote: VoteModel
     ): Response<VoteModel>
 }
 
 fun getRetrofitClient(): ApiService {
-
     val client = OkHttpClient.Builder()
         .build()
 

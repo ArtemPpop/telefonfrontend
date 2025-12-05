@@ -10,5 +10,6 @@ data class VoteModel(
     val poll: Int,
     val option: Int,
     val user: Int,
+
     @SerializedName("voted_at") val votedAt: String
 ) : Parcelable
