@@ -1,4 +1,3 @@
-// data/repository/PollRepository.kt
 package com.example.telefonfrontend.data.repository
 
 import com.example.telefonfrontend.data.model.PollModel

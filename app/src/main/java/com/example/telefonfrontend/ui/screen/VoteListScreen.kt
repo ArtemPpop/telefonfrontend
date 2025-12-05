@@ -1,173 +1,66 @@
-// ui/screen/VoteListScreen.kt
-package com.example.telefonfrontend.ui.screen
+package com.example.telefonfrontend.viewmodel
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
-import com.example.telefonfrontend.viewmodel.VoteViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.telefonfrontend.data.model.VoteModel
+import com.example.telefonfrontend.data.repository.VoteRepository
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
-@Composable
-fun VoteListScreen(
-    navController: NavController,
-    pollId: Int,
-    viewModel: VoteViewModel = viewModel()
-) {
-    val voteList = viewModel.votes.collectAsState()
-    val isLoading = viewModel.isLoading.collectAsState()
-    val errorMessage = viewModel.errorMessage.collectAsState()
+class VoteViewModel(
+    private val repository: VoteRepository = VoteRepository()
+) : ViewModel() {
 
-    // ТОЧНО как в примере с покемонами!
-    LaunchedEffect(pollId) {
-        viewModel.loadVotes(pollId)
-    }
+    private val _votes = MutableStateFlow<List<VoteModel>?>(null)
+    val votes: StateFlow<List<VoteModel>?> get() = _votes
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Top
-        ) {
-            // Кнопка назад
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.Start
-            ) {
-                Button(
-                    onClick = { navController.popBackStack() }
-                ) {
-                    Text("Назад к опросам")
-                }
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> get() = _isLoading
+
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> get() = _errorMessage
+
+    fun loadVotes(pollId: Int) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _errorMessage.value = null
+
+            val response = repository.getVotesByPoll(pollId)
+
+            if (response.isSuccessful) {
+                _votes.value = response.body() ?: emptyList()
+            } else {
+                _errorMessage.value = "Ошибка загрузки голосов: ${response.code()}"
             }
 
-            // Заголовок
-            Text(
-                text = "Варианты для голосования #$pollId",
-                fontSize = 20.sp,
-                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-
-            // Обработка состояний
-            when {
-                errorMessage.value != null -> {
-                    ErrorState(errorMessage = errorMessage.value!!)
-                }
-
-                isLoading.value -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(100.dp),
-                            color = Color.Blue,
-                            trackColor = Color.Red
-                        )
-                    }
-                }
-
-                voteList.value?.isEmpty() == true -> {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "Нет голосов",
-                            fontSize = 18.sp
-                        )
-                    }
-                }
-
-                else -> {
-                    VoteListContent(voteList = voteList.value ?: emptyList())
-                }
-            }
+            _isLoading.value = false
         }
     }
-}
 
-@Composable
-fun VoteListContent(voteList: List<com.example.telefonfrontend.data.model.VoteModel>) {
-    LazyColumn {
-        items(voteList.size) { index ->
-            val vote = voteList[index]
-            VoteCell(
-                index = index + 1,
-                vote = vote
-            )
-        }
-    }
-}
+    fun sendVote(vote: VoteModel, onResult: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _errorMessage.value = null
 
-@Composable
-fun VoteCell(
-    index: Int,
-    vote: com.example.telefonfrontend.data.model.VoteModel
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            Text(
-                text = "Голос #$index",
-                fontSize = 16.sp,
-                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-            )
+            val response = repository.sendVote(vote)
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "Вариант: ${vote.option}",
-                    fontSize = 14.sp
-                )
-
-                Text(
-                    text = "Пользователь: ${vote.user}",
-                    fontSize = 14.sp
-                )
+            if (response.isSuccessful) {
+                onResult(true)
+            } else {
+                _errorMessage.value = when (response.code()) {
+                    400 -> "Неверные данные"
+                    else -> "Ошибка голосования: ${response.code()}"
+                }
+                onResult(false)
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = "Опрос: ${vote.poll}",
-                fontSize = 14.sp
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = vote.votedAt,
-                fontSize = 12.sp,
-                color = Color.Gray
-            )
+            _isLoading.value = false
         }
+    }
+
+    fun clearVotes() {
+        _votes.value = null
+        _errorMessage.value = null
     }
 }

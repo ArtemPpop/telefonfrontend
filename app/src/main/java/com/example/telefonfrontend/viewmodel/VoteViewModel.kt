@@ -1,4 +1,3 @@
-// viewmodel/VoteViewModel.kt
 package com.example.telefonfrontend.viewmodel
 
 import androidx.lifecycle.ViewModel
@@ -13,7 +12,6 @@ class VoteViewModel(
     private val repository: VoteRepository = VoteRepository()
 ) : ViewModel() {
 
-    // Nullable как в примере
     private val _votes = MutableStateFlow<List<VoteModel>?>(null)
     val votes: StateFlow<List<VoteModel>?> get() = _votes
 
@@ -34,6 +32,27 @@ class VoteViewModel(
                 _votes.value = response.body() ?: emptyList()
             } else {
                 _errorMessage.value = "Ошибка загрузки голосов: ${response.code()}"
+            }
+
+            _isLoading.value = false
+        }
+    }
+
+    fun sendVote(vote: VoteModel, onResult: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _errorMessage.value = null
+
+            val response = repository.sendVote(vote)
+
+            if (response.isSuccessful) {
+                onResult(true)
+            } else {
+                _errorMessage.value = when (response.code()) {
+                    400 -> "Неверные данные"
+                    else -> "Ошибка голосования: ${response.code()}"
+                }
+                onResult(false)
             }
 
             _isLoading.value = false

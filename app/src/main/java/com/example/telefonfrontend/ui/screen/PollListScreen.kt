@@ -1,4 +1,3 @@
-// ui/screen/PollListScreen.kt
 package com.example.telefonfrontend.ui.screen
 
 import androidx.compose.foundation.layout.*
@@ -25,8 +24,6 @@ fun PollListScreen(
     val polls = viewModel.polls.collectAsState()
     val isLoading = viewModel.isLoading.collectAsState()
     val errorMessage = viewModel.errorMessage.collectAsState()
-
-    // Автоматическая загрузка при открытии экрана
     LaunchedEffect(Unit) {
         viewModel.loadPolls()
     }
@@ -47,8 +44,6 @@ fun PollListScreen(
             ) {
                 Text(text = "Обновить опросы")
             }
-
-            // Обработка состояний
             when {
                 errorMessage.value != null -> {
                     ErrorState(errorMessage = errorMessage.value!!)
@@ -92,8 +87,7 @@ fun PollListContent(
                     index = index + 1,
                     poll = poll,
                     onClick = {
-                        // ТОЧНО как в примере с покемонами!
-                        navController.navigate("vote_list/${poll.id}")
+                        navController.navigate("poll_detail/${poll.id}")
                     }
                 )
             }
@@ -136,8 +130,27 @@ fun PollCell(
 
             Spacer(modifier = Modifier.height(4.dp))
 
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "ID: ${poll.id}",
+                    fontSize = 12.sp,
+                    color = Color.Gray
+                )
+
+                Text(
+                    text = "Автор: ${poll.authorName}",
+                    fontSize = 12.sp,
+                    color = Color.Gray
+                )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
             Text(
-                text = "ID: ${poll.id} | Автор: ${poll.authorName}",
+                text = "Вариантов: ${poll.options.size}",
                 fontSize = 12.sp,
                 color = Color.Gray
             )
