@@ -1,110 +1,173 @@
+// ui/screen/PollListScreen.kt
 package com.example.telefonfrontend.ui.screen
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.navigation.NavController
+import com.example.telefonfrontend.data.model.PollModel
 import com.example.telefonfrontend.viewmodel.PollViewModel
 
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PollListScreen(viewModel: PollViewModel = viewModel ()) {
+fun PollListScreen(
+    navController: NavController,
+    viewModel: PollViewModel = viewModel()
+) {
+    val polls = viewModel.polls.collectAsState()
+    val isLoading = viewModel.isLoading.collectAsState()
+    val errorMessage = viewModel.errorMessage.collectAsState()
 
-    val polls by viewModel.polls.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val error by viewModel.errorMessage.collectAsState()
-
-    LaunchedEffect (Unit) {
+    // Автоматическая загрузка при открытии экрана
+    LaunchedEffect(Unit) {
         viewModel.loadPolls()
     }
 
-    Scaffold (
-        topBar = {
-            TopAppBar(title = { Text("Опросы") })
-        }
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
     ) {
-        Box(modifier = Modifier.padding(it)) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Top
+        ) {
+            // Кнопка обновить
+            Button(
+                onClick = { viewModel.loadPolls() },
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(text = "Обновить опросы")
+            }
 
+            // Обработка состояний
             when {
-                isLoading -> CircularProgressIndicator()
-                error != null -> Text("Ошибка: $error")
-                else -> LazyColumn() {
-                    items(polls) { poll ->
-                        Card (
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(8.dp)
-                        ) {
-                            Column (Modifier.padding(16.dp)) {
-                                Text(poll.title, style = MaterialTheme.typography.titleLarge)
-                                Spacer(Modifier.height(4.dp))
-                                Text(poll.description ?: "")
-                            }
-                        }
+                errorMessage.value != null -> {
+                    ErrorState(errorMessage = errorMessage.value!!)
+                }
+
+                isLoading.value -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(100.dp),
+                            color = Color.Blue,
+                            trackColor = Color.Red
+                        )
                     }
+                }
+
+                else -> {
+                    PollListContent(
+                        navController = navController,
+                        pollList = polls.value
+                    )
                 }
             }
         }
     }
 }
-@OptIn(ExperimentalMaterial3Api::class)
+
 @Composable
-fun PollViewModel(viewModel: PollViewModel = viewModel()) {
-
-    val polls by viewModel.polls.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val error by viewModel.errorMessage.collectAsState()
-
-    LaunchedEffect(Unit) {
-        viewModel.loadPolls()
-    }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(title = { Text("Опросы") })
-        }
-    ) {
-        Box(modifier = Modifier.padding(it)) {
-
-            when {
-                isLoading -> CircularProgressIndicator()
-                error != null -> Text("Ошибка: $error")
-                else -> LazyColumn {
-                    items(polls) { poll ->
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(8.dp)
-                        ) {
-                            Column(Modifier.padding(16.dp)) {
-                                Text(poll.title, style = MaterialTheme.typography.titleLarge)
-                                Spacer(Modifier.height(4.dp))
-                                Text(poll.description ?: "")
-                            }
-                        }
+fun PollListContent(
+    navController: NavController,
+    pollList: List<PollModel>?
+) {
+    LazyColumn {
+        pollList?.let { polls ->
+            items(polls.size) { index ->
+                val poll = polls[index]
+                PollCell(
+                    modifier = Modifier.fillMaxWidth(),
+                    index = index + 1,
+                    poll = poll,
+                    onClick = {
+                        // ТОЧНО как в примере с покемонами!
+                        navController.navigate("vote_list/${poll.id}")
                     }
-                }
+                )
             }
         }
+    }
+}
+
+@Composable
+fun PollCell(
+    modifier: Modifier = Modifier,
+    index: Int,
+    poll: com.example.telefonfrontend.data.model.PollModel,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        onClick = onClick
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Text(
+                text = "$index. ${poll.title}",
+                fontSize = 18.sp,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (!poll.description.isNullOrEmpty()) {
+                Text(
+                    text = poll.description,
+                    fontSize = 14.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = "ID: ${poll.id} | Автор: ${poll.authorName}",
+                fontSize = 12.sp,
+                color = Color.Gray
+            )
+        }
+    }
+}
+
+@Composable
+fun ErrorState(
+    modifier: Modifier = Modifier,
+    errorMessage: String
+) {
+    Column(
+        modifier = modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Ошибка!",
+            fontSize = 24.sp,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+            color = MaterialTheme.colorScheme.error
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = errorMessage,
+            fontSize = 16.sp,
+            modifier = Modifier.padding(horizontal = 32.dp)
+        )
     }
 }

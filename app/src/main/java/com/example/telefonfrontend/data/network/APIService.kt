@@ -15,17 +15,19 @@ import retrofit2.http.Path
 
 interface ApiService {
 
-    // GET /api/polls/
     @GET("polls/")
     suspend fun getPolls(): Response<List<PollModel>>
 
-    // GET /api/polls/{id}/
     @GET("polls/{id}/")
     suspend fun getPollById(
         @Path("id") pollId: Int
     ): Response<PollModel>
 
-    // POST /api/votes/
+    @GET("votes/{poll_id}/")
+    suspend fun getVotesByPoll(
+        @Path("poll_id") pollId: Int
+    ): Response<List<VoteModel>>
+
     @POST("votes/")
     suspend fun sendVote(
         @Body vote: VoteModel

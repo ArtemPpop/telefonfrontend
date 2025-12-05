@@ -1,3 +1,4 @@
+// viewmodel/PollViewModel.kt
 package com.example.telefonfrontend.viewmodel
 
 import androidx.lifecycle.ViewModel
@@ -8,14 +9,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-class PollViewModel (
+class PollViewModel(
     private val repository: PollRepository = PollRepository()
 ) : ViewModel() {
 
-    private val _polls = MutableStateFlow<List<PollModel>>(emptyList())
-    val polls: StateFlow<List<PollModel>> get() = _polls
+    // Теперь nullable как в примере с покемонами
+    private val _polls = MutableStateFlow<List<PollModel>?>(null)
+    val polls: StateFlow<List<PollModel>?> get() = _polls
 
-    private val _isLoading = MutableStateFlow(true)
+    private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> get() = _isLoading
 
     private val _errorMessage = MutableStateFlow<String?>(null)
@@ -24,6 +26,8 @@ class PollViewModel (
     fun loadPolls() {
         viewModelScope.launch {
             _isLoading.value = true
+            _errorMessage.value = null
+
             val response = repository.getPolls()
 
             if (response.isSuccessful) {
